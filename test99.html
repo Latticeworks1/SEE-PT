@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>File Import</title>
+  <!-- Load Plotly library -->
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/g/filesaver.js"></script>
+
+  <style>
+    body {
+      text-align: left;
+      background-color:   #f2f2f9; /* set the background color to light gray */
+}
+    .header {
+      background-color: #b5e7a0;
+      height: 60px;
+      font-color: white;
+      display: flex;
+      flex-direction:row;
+      justify-content: flex-start;
+      align-items: left;
+      border-radius: 5px;
+      font-size: 1.0em;
+      margin-bottom: 5px;
+
+    }
+        h1 {
+      font-size: 1.75em;
+      font-family: Arial, sans-serif;
+
+      margin-top: 5;
+	align-items: flex-start; /* align items to the left */
+      margin-left: 10px; /* add margin to the left */
+    }
+
+
+
+    .container {
+      display: flex;
+      justify-content: center;
+    }
+    #fileContents {
+      display: block;
+      margin: 10px auto; /* added 20px margin top */
+      font-size: 1.1em;
+      display: flex;
+      justify-content: left;
+      width: 75vw;
+      height: 10vh;
+    }
+
+
+    #plot-container1, #plot-container2, #plot-container3 {
+      margin-top: 2vh;
+      background-color: transparent;
+    }
+
+
+/* Button styles */
+button#saveButton,
+button#removeNegativesButton,
+button#addValuesButton {
+  background-color: #4CAF50;
+  border: none;
+  color: white;
+  padding: 10px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 16px;
+  margin: 4px 2px;
+  cursor: pointer;
+  border-radius: 5px;
+}
+
+
+/* Select styles */
+select#removeNegativesSelect,
+select#addValuesSelect {
+  padding: 10px;
+  font-size: 16px;
+  margin: 4px 2px;
+  border-radius: 5px;
+}
+
+/* Input styles */
+input#addValuesInput {
+  padding: 10px;
+  font-size: 16px;
+  margin: 4px 2px;
+  border-radius: 5px;
+  border: none;
+  border: 1px solid #ccc;
+}
+
+/* File input styles */
+input[type="file"]#fileInput {
+  display: none;
+}
+
+label[for="fileInput"] {
+  background-color: #4CAF50;
+  border: none;
+  color: white;
+  padding: 10px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 16px;
+  margin: 4px 2px;
+  cursor: pointer;
+  border-radius: 5px;
+}
+
+#removeNegativesContainer {
+  float: right;
+}
+
+#addValuesContainer {
+  float: right;
+  margin-right: 20px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+}
+
+  </style>
+
+</head>
+<body>
+
+<div class="header">
+  <h1>Sounding Plotter</h1>
+  <div>
+  <label for="fileInput">Upload File</label>
+  <input type="file" id="fileInput">
+  <button id="saveButton">Save</button>
+  </div> 
+
+<div id="removeNegativesContainer" style="float: right;">
+    <label for="removeNegativesSelect"></label>
+    <select id="removeNegativesSelect">
+      <option value="QC">QC</option>
+      <option value="FS">FS</option>
+      <option value="U">U</option>
+    </select>
+    <button id="removeNegativesButton">Remove Negative Values</button>
+  </div>
+
+  <div id="addValuesContainer" style="float: right;">
+    <select id="addValuesSelect">
+      <option value="QC">QC</option>
+      <option value="FS">FS</option>
+      <option value="U">U</option>
+    </select>
+    <input type="text" id="addValuesInput" placeholder="Enter the value to add">
+    <button id="addValuesButton">Baseline Shift</button>
+  </div>
+</div>
+
+
+
+<div class="content">
+  <textarea id="fileContents" rows="10" cols="50"></textarea>
+
+  <div class="container">
+    <div id="plot-container1"></div>
+    <div id="plot-container2"></div>
+    <div id="plot-container3"></div>
+  </div>
+</div>
+ <script>
+    let soundingData = [];
+
+function parseSoundingData(data) {
+  soundingData = [];
+  const lines = data.split('\n');
+
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].startsWith("D=")) {
+      const d = parseFloat(lines[i].split("=")[1].split(",")[0]);
+      const qc = parseFloat(lines[i].split("=")[2].split(",")[0]);
+      const fs = parseFloat(lines[i].split("=")[3].split(",")[0]);
+      const u = parseFloat(lines[i].split("=")[4].split(",")[0]);
+      const row = { D: d, QC: qc, FS: fs, U: u };
+      soundingData.push(row);
+    }
+  }
+}
+// Add an event listener for when a file is selected
+const fileInput = document.getElementById("fileInput");
+fileInput.addEventListener("change", function(event) {
+  // Get the selected file
+  const file = event.target.files[0];
+  
+  // Create a file reader object
+  const reader = new FileReader();
+  
+  // Add an event listener for when the file is loaded
+  reader.addEventListener("load", function(event) {
+    // Get the file contents
+    const contents = event.target.result;
+    
+    // Decode the file contents using the appropriate encoding
+    const decoder = new TextDecoder("windows-1252");
+    const decodedContents = decoder.decode(contents);
+    
+    // Set the text area value to the decoded file contents
+    const fileContents = document.getElementById("fileContents");
+    fileContents.value = decodedContents;
+
+
+    // Parse the sounding data
+    parseSoundingData(decodedContents);
+
+    // Update the plot with the new data
+    updatePlot(soundingData);
+  });
+  
+  // Read the selected file as a buffer
+  reader.readAsArrayBuffer(file);
+});
+
+// Add an event listener for when the text area value changes
+const fileContents = document.getElementById("fileContents");
+fileContents.addEventListener("input", function(event) {
+
+  // Parse the sounding data 
+ parseSoundingData(event.target.value);
+
+  // Update the plot with the new data
+ updatePlot(soundingData);
+});
+
+// Function to update the plot with new data
+  function updatePlot() {
+    // Extract the data from the parsed sounding data
+    const depthData = soundingData.map(row => row.D);
+    const tipData = soundingData.map(row => row.QC);
+    const frictionData = soundingData.map(row => row.FS);
+    const pressureData = soundingData.map(row => row.U);
+
+// Create the plot for tip data
+const trace1 = {
+  x: tipData,
+  y: depthData,
+  mode: "lines+markers",
+  type: "scatter",
+  name: "Tip",
+  marker: {
+    size: 2,
+    colorscale: "Viridis",
+    color: tipData
+  }
+};
+
+const layout1 = {
+  title: "Tip Data",
+  titlefont: {
+    size: 14 // adjust this value to reduce the font size of the title
+  },
+  margin: {
+    t: 20 // adjust this value to reduce the top margin
+  },
+
+  xaxis: {
+    title: "Tip (kPa)"
+  },
+  yaxis: {
+    title: "Depth (m)",
+    autorange: "reversed"
+  },
+  width: 400,
+  height: 700,
+  dragmode: 'pan',
+  plot_bgcolor: 'transparent',
+  paper_bgcolor: 'transparent',
+};
+
+// Create the plot for friction data
+const trace2 = {
+  x: frictionData,
+  y: depthData,
+  mode: "lines+markers",
+  type: "scatter",
+  name: "Friction",
+  marker: {
+    size: 4,
+    colorscale: "Viridis",
+    color: frictionData
+  }
+};
+const layout2 = {
+  title: "Friction Data",
+  titlefont: {
+    size: 14 // adjust this value to reduce the font size of the title
+  },
+  margin: {
+    t: 20 // adjust this value to reduce the top margin
+  },
+  xaxis: {
+    title: "Friction (kPa)"
+  },
+  yaxis: {
+    title: "Depth (m)",
+    autorange: "reversed"
+  },
+  width: 400,
+  height: 700,
+  dragmode: 'pan',
+  plot_bgcolor: 'transparent',
+  paper_bgcolor: 'transparent',
+};
+
+// Create the plot for pressure data
+const trace3 = {
+  x: pressureData,
+  y: depthData,
+  mode: "lines+markers",
+  type: "scatter",
+  name: "Pressure",
+  marker: {
+    size: 4,
+    colorscale: "Viridis",
+    color: pressureData
+  }
+};
+
+const layout3 = {
+  title: "Pressure Data",
+  titlefont: {
+    size: 14 // adjust this value to reduce the font size of the title
+  },
+  margin: {
+    t: 20 // adjust this value to reduce the top margin
+  },
+  xaxis: {
+    title: "Pressure (kPa)",
+    },
+  yaxis: {
+    title: "Depth (m)",
+    autorange: "reversed"
+  },
+  width: 400,
+  height: 700,
+  dragmode: 'pan',
+  plot_bgcolor: 'transparent',
+  paper_bgcolor: 'transparent',
+
+};
+
+// Set the grid layout options
+const gridLayout = {
+  grid: {
+    rows: 1,
+    columns: 3,
+    xgap: 0.4
+  },
+  width: 1300,
+  height: 400,
+  margin: {
+    l: 10,
+    r: 10,
+    b: 10,
+    t: 10,
+    pad: 2
+  },
+  paper_bgcolor: 'rgba(0,0,0,0)',
+  plot_bgcolor: 'rgba(0,0,0,0)'
+};
+
+const config = {
+  scrollZoom: true,
+  modeBarButtonsToRemove: ['lasso2d', 'select2d'],
+  displayModeBar: false,
+  responsive: true,
+  dragmode: 'pan',
+  hovermode: 'closest',
+  paper_bgcolor: 'rgba(0,0,0,0)',
+  plot_bgcolor: 'rgba(0,0,0,0)'
+
+};
+
+// Update the plots with the new data
+Plotly.newPlot('plot-container1', [trace1], layout1, config);
+Plotly.newPlot('plot-container2', [trace2], layout2, config);
+Plotly.newPlot('plot-container3', [trace3], layout3, config);
+}
+
+const saveButton = document.getElementById("saveButton");
+saveButton.addEventListener("click", function() {
+  const textArea = document.getElementById("fileContents");
+  let contents = textArea.value;
+  
+  // Replace all occurrences of LF with CRLF
+  contents = contents.replace(/\n/g, "\r\n");
+
+  const importedFile = document.getElementById("fileInput").files[0]; // Get the imported file
+  const blob = new Blob([contents], { type: "text/plain;charset=windows-1252" });
+  saveAs(blob, importedFile.name); // Use the imported file name
+});
+
+
+const removeNegativesButton = document.getElementById("removeNegativesButton");
+removeNegativesButton.addEventListener("click", function() {
+  const fileContents = document.getElementById("fileContents").value; // Get the contents of the text area
+  const parameter = document.getElementById("removeNegativesSelect").value; // Get the selected parameter
+
+  const lines = fileContents.split("\n"); // Split the contents by newline character
+
+  const regex = new RegExp("(" + parameter + ")=(-\\d+)", "g"); // Regular expression to match the selected parameter with negative values
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const updatedLine = line.replace(regex, function(match, p1, p2) {
+      const newValue = p2.substring(1); // Remove the negative sign
+      return p1 + "=" + newValue; // Construct the updated value
+    });
+    lines[i] = updatedLine; // Store the updated line
+  }
+
+  const updatedContents = lines.join("\n"); // Join the updated lines with newline character
+  document.getElementById("fileContents").value = updatedContents; // Update the text area value
+
+  // Parse the updated sounding data and update the plots
+  const updatedSoundingData = parseSoundingData(updatedContents);
+  updatePlot(updatedSoundingData);
+
+});
+
+//Baseline Shifting feature
+const addValuesButton = document.getElementById("addValuesButton");
+addValuesButton.addEventListener("click", function() {
+  const fileContents = document.getElementById("fileContents").value; // Get the contents of the text area
+  const inputValue = parseFloat(document.getElementById("addValuesInput").value); // Get the input value
+  const parameter = document.getElementById("addValuesSelect").value; // Get the selected parameter
+
+  const lines = fileContents.split("\n"); // Split the contents by newline character
+
+  // Regular expression to match the selected parameter
+  const regex = new RegExp("(" + parameter + ")=(-?\\d+(\\.\\d+)?)" , "g");
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const updatedLine = line.replace(regex, function(match, p1, p2) {
+      let newValue = parseFloat(p2) + inputValue; // Add the input value to the existing value
+      if (p1 === "FS" || p1 === "U") {
+        newValue = newValue.toFixed(1); // Limit decimal places to 2 for FS and U
+      } else {
+        newValue = newValue.toFixed(4); // Limit decimal places to 4 for other parameters
+      }
+      return p1 + "=" + newValue.toString(); // Construct the updated value
+    });
+    lines[i] = updatedLine; // Store the updated line
+  }
+
+  const updatedContents = lines.join("\n"); // Join the updated lines with newline character
+  document.getElementById("fileContents").value = updatedContents; // Update the text area value
+  
+});
+
+
+
+
+
+  </script>
+</body>
+</html>
