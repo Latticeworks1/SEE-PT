@@ -1,201 +1,322 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sounding Data Viewer</title>
-    <!-- Include the Tailwind CSS stylesheet -->
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.15/dist/tailwind.min.css" rel="stylesheet">
+  <title>File Import</title>
+  <!-- Load Plotly library -->
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/g/filesaver.js"></script>
+
+  <style>
+    body {
+      text-align: left;
+      background-color:   #f2f2f9; /* set the background color to light gray */
+}
+    .header {
+      background-color: #b5e7a0;
+      height: 60px;
+      font-color: white;
+      display: flex;
+      flex-direction:row;
+      justify-content: flex-start;
+      align-items: left;
+      border-radius: 5px;
+      font-size: 1.0em;
+      margin-bottom: 5px;
+
+    }
+        h1 {
+      font-size: 1.75em;
+      font-family: Arial, sans-serif;
+
+      margin-top: 5;
+	align-items: flex-start; /* align items to the left */
+      margin-left: 10px; /* add margin to the left */
+    }
+
+
+
+    .container {
+      display: flex;
+      justify-content: center;
+    }
+    #fileContents {
+      display: block;
+      margin: 10px auto; /* added 20px margin top */
+      font-size: 1.1em;
+      display: flex;
+      justify-content: left;
+      width: 75vw;
+      height: 10vh;
+    }
+
+
+    #plot-container1, #plot-container2, #plot-container3 {
+      margin-top: 2vh;
+      background-color: transparent;
+    }
+
+
+/* Button styles */
+button#saveButton,
+button#removeNegativesButton,
+button#addValuesButton {
+  background-color: #4CAF50;
+  border: none;
+  color: white;
+  padding: 10px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 16px;
+  margin: 4px 2px;
+  cursor: pointer;
+  border-radius: 5px;
+}
+
+
+/* Select styles */
+select#removeNegativesSelect,
+select#addValuesSelect {
+  padding: 10px;
+  font-size: 16px;
+  margin: 4px 2px;
+  border-radius: 5px;
+}
+
+/* Input styles */
+input#addValuesInput {
+  padding: 10px;
+  font-size: 16px;
+  margin: 4px 2px;
+  border-radius: 5px;
+  border: none;
+  border: 1px solid #ccc;
+}
+
+/* File input styles */
+input[type="file"]#fileInput {
+  display: none;
+}
+
+label[for="fileInput"] {
+  background-color: #4CAF50;
+  border: none;
+  color: white;
+  padding: 10px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 16px;
+  margin: 4px 2px;
+  cursor: pointer;
+  border-radius: 5px;
+}
+
+#removeNegativesContainer {
+  float: right;
+}
+
+#addValuesContainer {
+  float: right;
+  margin-right: 20px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+}
+
+  </style>
+
 </head>
-<body class="bg-gray-100 p-4">
-    <div class="max-w-lg mx-auto bg-white p-6 rounded shadow-lg">
-        <h1 class="text-2xl font-semibold mb-4">Sounding Data Viewer</h1>
-        <input type="file" id="fileInput" class="mb-4">
-        <textarea id="fileContents" class="w-full h-32 border rounded p-2 mb-4" placeholder="Paste or edit your data here"></textarea>
-        <div id="plot-container1" class="mb-4"></div>
-        <div id="plot-container2" class="mb-4"></div>
-        <div id="plot-container3" class="mb-4"></div>
-        <button id="saveButton" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-700 focus:outline-none focus:shadow-outline-blue active:bg-blue-800">Save</button>
-        <button id="removeNegativesButton" class="bg-red-500 text-white px-4 py-2 rounded ml-2 hover:bg-red-700 focus:outline-none focus:shadow-outline-red active:bg-red-800">Remove Negatives</button>
-        <button id="addValuesButton" class="bg-green-500 text-white px-4 py-2 rounded ml-2 hover:bg-green-700 focus:outline-none focus:shadow-outline-green active:bg-green-800">Baseline Shift</button>
-    </div>
+<body>
 
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-    <script>
-        const PARAM_PREFIXES = ["D=", "QC=", "FS=", "U="];
+<div class="header">
+  <h1>Sounding Plotter</h1>
+  <div>
+  <label for="fileInput">Upload File</label>
+  <input type="file" id="fileInput">
+  <button id="saveButton">Save</button>
+  </div> 
 
-        let fileContents = '';
-        let soundingData = [];
+<div id="removeNegativesContainer" style="float: right;">
+    <label for="removeNegativesSelect"></label>
+    <select id="removeNegativesSelect">
+      <option value="QC">QC</option>
+      <option value="FS">FS</option>
+      <option value="U">U</option>
+    </select>
+    <button id="removeNegativesButton">Remove Negative Values</button>
+  </div>
 
-        function parseSoundingData(data) {
-            soundingData = [];
-            const lines = data.split('\n');
+  <div id="addValuesContainer" style="float: right;">
+    <select id="addValuesSelect">
+      <option value="QC">QC</option>
+      <option value="FS">FS</option>
+      <option value="U">U</option>
+    </select>
+    <input type="text" id="addValuesInput" placeholder="Enter the value to add">
+    <button id="addValuesButton">Baseline Shift</button>
+  </div>
+</div>
 
-            for (let i = 0; i < lines.length; i++) {
-                if (lines[i].startsWith("D=")) {
-                    const d = parseFloat(lines[i].split("=")[1].split(",")[0]);
-                    const qc = parseFloat(lines[i].split("=")[2].split(",")[0]);
-                    const fs = parseFloat(lines[i].split("=")[3].split(",")[0]);
-                    const u = parseFloat(lines[i].split("=")[4].split(",")[0]);
-                    const row = { D: d, QC: qc, FS: fs, U: u };
-                    soundingData.push(row);
-                }
-            }
-        }
 
-        function generatePlot(data, xKey, yKey, title, xTitle, yTitle) {
-            const trace = {
-                x: data.map(row => row[xKey]),
-                y: data.map(row => row[yKey]),
-                mode: "lines+markers",
-                type: "scatter",
-                name: title,
-                marker: {
-                    size: 4,
-                    colorscale: "Viridis",
-                    color: data.map(row => row[yKey])
-                }
-            };
 
-            const layout = {
-                title,
-                titlefont: {
-                    size: 14
-                },
-                margin: {
-                    t: 20
-                },
-                xaxis: {
-                    title: xTitle
-                },
-                yaxis: {
-                    title: yTitle,
-                    autorange: "reversed"
-                },
-                width: 400,
-                height: 700,
-                dragmode: 'pan',
-                plot_bgcolor: 'transparent',
-                paper_bgcolor: 'transparent',
-            };
+<div class="content">
+  <textarea id="fileContents" rows="10" cols="50"></textarea>
 
-            return { trace, layout };
-        }
+  <div class="container">
+    <div id="plot-container1"></div>
+    <div id="plot-container2"></div>
+    <div id="plot-container3"></div>
+  </div>
+</div>
+ <script>
+// Constants for parameter prefixes
+const PARAM_PREFIXES = ["D=", "QC=", "FS=", "U="];
 
-        function updatePlots(soundingData) {
-            const depthData = soundingData.map(row => row.D);
-            const tipData = soundingData.map(row => row.QC);
-            const frictionData = soundingData.map(row => row.FS);
-            const pressureData = soundingData.map(row => row.U);
+// Function to parse data and return an array of objects
+function parseSoundingData(data) {
+  return data.split('\n')
+    .filter(line => PARAM_PREFIXES.some(prefix => line.startsWith(prefix)))
+    .map(line => {
+      const values = line.split("=").map(parseFloat);
+      return { D: values[1], QC: values[2], FS: values[3], U: values[4] };
+    });
+}
 
-            const plots = [
-                generatePlot(tipData, depthData, "Tip Data", "Tip (kPa)", "Depth (m)"),
-                generatePlot(frictionData, depthData, "Friction Data", "Friction (kPa)", "Depth (m)"),
-                generatePlot(pressureData, depthData, "Pressure Data", "Pressure (kPa)", "Depth (m)")
-            ];
+// Function to update a single plot
+function updateSinglePlot(containerId, xData, yData, title, xTitle, yTitle) {
+  const trace = {
+    x: xData,
+    y: yData,
+    mode: "lines+markers",
+    type: "scatter",
+    name: title,
+    marker: {
+      size: 2,
+      colorscale: "Viridis",
+      color: yData
+    }
+  };
 
-            const config = {
-                scrollZoom: true,
-                modeBarButtonsToRemove: ['lasso2d', 'select2d'],
-                displayModeBar: false,
-                responsive: true,
-                dragmode: 'pan',
-                hovermode: 'closest',
-                paper_bgcolor: 'rgba(0,0,0,0)',
-                plot_bgcolor: 'rgba(0,0,0,0)'
-            };
+  const layout = {
+    title: title,
+    titlefont: { size: 14 },
+    margin: { t: 20 },
+    xaxis: { title: xTitle },
+    yaxis: { title: yTitle, autorange: "reversed" },
+    width: 400,
+    height: 700,
+    dragmode: 'pan',
+    plot_bgcolor: 'transparent',
+    paper_bgcolor: 'transparent',
+  };
 
-            const plotContainers = ['plot-container1', 'plot-container2', 'plot-container3'];
+  const config = {
+    scrollZoom: true,
+    modeBarButtonsToRemove: ['lasso2d', 'select2d'],
+    displayModeBar: false,
+    responsive: true,
+    dragmode: 'pan',
+    hovermode: 'closest',
+    paper_bgcolor: 'rgba(0,0,0,0)',
+    plot_bgcolor: 'rgba(0,0,0,0)'
+  };
 
-            plotContainers.forEach((containerId, index) => {
-                const plot = plots[index];
-                Plotly.newPlot(containerId, [plot.trace], plot.layout, config);
-            });
-        }
+  Plotly.newPlot(containerId, [trace], layout, config);
+}
 
-        const fileInput = document.getElementById("fileInput");
-        fileInput.addEventListener("change", function (event) {
-            const file = event.target.files[0];
-            const reader = new FileReader();
+// Function to update all plots
+function updatePlots(soundingData) {
+  const depthData = soundingData.map(row => row.D);
+  const tipData = soundingData.map(row => row.QC);
+  const frictionData = soundingData.map(row => row.FS);
+  const pressureData = soundingData.map(row => row.U);
 
-            reader.addEventListener("load", function (event) {
-                const contents = event.target.result;
-                const decoder = new TextDecoder("windows-1252");
-                const decodedContents = decoder.decode(contents);
-                fileContents = decodedContents;
-                document.getElementById("fileContents").value = decodedContents;
-                parseSoundingData(decodedContents);
-                updatePlots(soundingData);
-            });
+  updateSinglePlot('plot-container1', tipData, depthData, "Tip Data", "Tip (kPa)", "Depth (m)");
+  updateSinglePlot('plot-container2', frictionData, depthData, "Friction Data", "Friction (kPa)", "Depth (m)");
+  updateSinglePlot('plot-container3', pressureData, depthData, "Pressure Data", "Pressure (kPa)", "Depth (m)");
+}
 
-            reader.readAsArrayBuffer(file);
-        });
+// Event listener for file input
+document.getElementById("fileInput").addEventListener("change", function (event) {
+  const file = event.target.files[0];
+  const reader = new FileReader();
 
-        const fileContentsTextArea = document.getElementById("fileContents");
-        fileContentsTextArea.addEventListener("input", function (event) {
-            fileContents = event.target.value;
-            parseSoundingData(fileContents);
-            updatePlots(soundingData);
-        });
+  reader.addEventListener("load", function (event) {
+    const contents = event.target.result;
+    const decoder = new TextDecoder("windows-1252");
+    const decodedContents = decoder.decode(contents);
+    document.getElementById("fileContents").value = decodedContents;
 
-        const saveButton = document.getElementById("saveButton");
-        saveButton.addEventListener("click", function () {
-            let contents = fileContents;
-            contents = contents.replace(/\n/g, "\r\n");
-            const importedFile = fileInput.files[0];
-            const blob = new Blob([contents], { type: "text/plain;charset=windows-1252" });
-            saveAs(blob, importedFile.name);
-        });
+    const soundingData = parseSoundingData(decodedContents);
+    updatePlots(soundingData);
+  });
 
-        const removeNegativesButton = document.getElementById("removeNegativesButton");
-        removeNegativesButton.addEventListener("click", function () {
-            const parameter = document.getElementById("removeNegativesSelect").value;
-            const lines = fileContents.split("\n");
-            const regex = new RegExp("(" + parameter + ")=(-\\d+)", "g");
+  reader.readAsArrayBuffer(file);
+});
 
-            for (let i = 0; i < lines.length; i++) {
-                const line = lines[i];
-                const updatedLine = line.replace(regex, function (match, p1, p2) {
-                    const newValue = p2.substring(1);
-                    return p1 + "=" + newValue;
-                });
-                lines[i] = updatedLine;
-            }
+// Event listener for text area input
+document.getElementById("fileContents").addEventListener("input", function (event) {
+  const decodedContents = event.target.value;
+  const soundingData = parseSoundingData(decodedContents);
+  updatePlots(soundingData);
+});
 
-            const updatedContents = lines.join("\n");
-            fileContents = updatedContents;
-            document.getElementById("fileContents").value = updatedContents;
-            parseSoundingData(updatedContents);
-            updatePlots(soundingData);
-        });
+// Event listener for save button
+document.getElementById("saveButton").addEventListener("click", function () {
+  const textArea = document.getElementById("fileContents");
+  let contents = textArea.value;
+  contents = contents.replace(/\n/g, "\r\n");
 
-        const addValuesButton = document.getElementById("addValuesButton");
-        addValuesButton.addEventListener("click", function () {
-            const inputValue = parseFloat(document.getElementById("addValuesInput").value);
-            const parameter = document.getElementById("addValuesSelect").value;
-            const lines = fileContents.split("\n");
-            const regex = new RegExp("(" + parameter + ")=(-?\\d+(\\.\\d+)?)", "g");
+  const importedFile = document.getElementById("fileInput").files[0];
+  const blob = new Blob([contents], { type: "text/plain;charset=windows-1252" });
+  saveAs(blob, importedFile.name);
+});
 
-            for (let i = 0; i < lines.length; i++) {
-                const line = lines[i];
-                const updatedLine = line.replace(regex, function (match, p1, p2) {
-                    let newValue = parseFloat(p2) + inputValue;
-                    if (p1 === "FS" || p1 === "U") {
-                        newValue = newValue.toFixed(1);
-                    } else {
-                        newValue = newValue.toFixed(4);
-                    }
-                    return p1 + "=" + newValue.toString();
-                });
-                lines[i] = updatedLine;
-            }
+// Event listener for remove negatives button
+document.getElementById("removeNegativesButton").addEventListener("click", function () {
+  const fileContents = document.getElementById("fileContents").value;
+  const parameter = document.getElementById("removeNegativesSelect").value;
 
-            const updatedContents = lines.join("\n");
-            fileContents = updatedContents;
-            document.getElementById("fileContents").value = updatedContents;
-            parseSoundingData(updatedContents);
-            updatePlots(soundingData);
-        });
-    </script>
+  const updatedContents = fileContents.replace(new RegExp(`(${parameter})=(-\\d+)`, "g"), (match, p1, p2) => {
+    return `${p1}=${p2.substring(1)}`;
+  });
+
+  document.getElementById("fileContents").value = updatedContents;
+  const soundingData = parseSoundingData(updatedContents);
+  updatePlots(soundingData);
+});
+
+// Event listener for baseline shifting feature (add values button)
+document.getElementById("addValuesButton").addEventListener("click", function () {
+  const fileContents = document.getElementById("fileContents").value;
+  const inputValue = parseFloat(document.getElementById("addValuesInput").value);
+  const parameter = document.getElementById("addValuesSelect").value;
+
+  const updatedContents = fileContents.replace(new RegExp(`(${parameter})=(-?\\d+(\\.\\d+)?)`, "g"), (match, p1, p2) => {
+    let newValue = parseFloat(p2) + inputValue;
+    if (p1 === "FS" || p1 === "U") {
+      newValue = newValue.toFixed(1);
+    } else {
+      newValue = newValue.toFixed(4);
+    }
+    return `${p1}=${newValue.toString()}`;
+  });
+
+  document.getElementById("fileContents").value = updatedContents;
+  const soundingData = parseSoundingData(updatedContents);
+  updatePlots(soundingData);
+});
+
+
+  </script>
 </body>
 </html>
