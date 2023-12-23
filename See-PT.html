@@ -178,297 +178,143 @@ label[for="fileInput"] {
   </div>
 </div>
  <script>
-    let soundingData = [];
+// Constants for parameter prefixes
+const PARAM_PREFIXES = ["D=", "QC=", "FS=", "U="];
 
+// Function to parse data and return an array of objects
 function parseSoundingData(data) {
-  soundingData = [];
-  const lines = data.split('\n');
-
-  for (let i = 0; i < lines.length; i++) {
-    if (lines[i].startsWith("D=")) {
-      const d = parseFloat(lines[i].split("=")[1].split(",")[0]);
-      const qc = parseFloat(lines[i].split("=")[2].split(",")[0]);
-      const fs = parseFloat(lines[i].split("=")[3].split(",")[0]);
-      const u = parseFloat(lines[i].split("=")[4].split(",")[0]);
-      const row = { D: d, QC: qc, FS: fs, U: u };
-      soundingData.push(row);
-    }
-  }
+  return data.split('\n')
+    .filter(line => PARAM_PREFIXES.some(prefix => line.startsWith(prefix)))
+    .map(line => {
+      const values = line.split("=").map(parseFloat);
+      return { D: values[1], QC: values[2], FS: values[3], U: values[4] };
+    });
 }
-// Add an event listener for when a file is selected
-const fileInput = document.getElementById("fileInput");
-fileInput.addEventListener("change", function(event) {
-  // Get the selected file
+
+// Function to update a single plot
+function updateSinglePlot(containerId, xData, yData, title, xTitle, yTitle) {
+  const trace = {
+    x: xData,
+    y: yData,
+    mode: "lines+markers",
+    type: "scatter",
+    name: title,
+    marker: {
+      size: 2,
+      colorscale: "Viridis",
+      color: yData
+    }
+  };
+
+  const layout = {
+    title: title,
+    titlefont: { size: 14 },
+    margin: { t: 20 },
+    xaxis: { title: xTitle },
+    yaxis: { title: yTitle, autorange: "reversed" },
+    width: 400,
+    height: 700,
+    dragmode: 'pan',
+    plot_bgcolor: 'transparent',
+    paper_bgcolor: 'transparent',
+  };
+
+  const config = {
+    scrollZoom: true,
+    modeBarButtonsToRemove: ['lasso2d', 'select2d'],
+    displayModeBar: false,
+    responsive: true,
+    dragmode: 'pan',
+    hovermode: 'closest',
+    paper_bgcolor: 'rgba(0,0,0,0)',
+    plot_bgcolor: 'rgba(0,0,0,0)'
+  };
+
+  Plotly.newPlot(containerId, [trace], layout, config);
+}
+
+// Function to update all plots
+function updatePlots(soundingData) {
+  const depthData = soundingData.map(row => row.D);
+  const tipData = soundingData.map(row => row.QC);
+  const frictionData = soundingData.map(row => row.FS);
+  const pressureData = soundingData.map(row => row.U);
+
+  updateSinglePlot('plot-container1', tipData, depthData, "Tip Data", "Tip (kPa)", "Depth (m)");
+  updateSinglePlot('plot-container2', frictionData, depthData, "Friction Data", "Friction (kPa)", "Depth (m)");
+  updateSinglePlot('plot-container3', pressureData, depthData, "Pressure Data", "Pressure (kPa)", "Depth (m)");
+}
+
+// Event listener for file input
+document.getElementById("fileInput").addEventListener("change", function (event) {
   const file = event.target.files[0];
-  
-  // Create a file reader object
   const reader = new FileReader();
-  
-  // Add an event listener for when the file is loaded
-  reader.addEventListener("load", function(event) {
-    // Get the file contents
+
+  reader.addEventListener("load", function (event) {
     const contents = event.target.result;
-    
-    // Decode the file contents using the appropriate encoding
     const decoder = new TextDecoder("windows-1252");
     const decodedContents = decoder.decode(contents);
-    
-    // Set the text area value to the decoded file contents
-    const fileContents = document.getElementById("fileContents");
-    fileContents.value = decodedContents;
+    document.getElementById("fileContents").value = decodedContents;
 
-
-    // Parse the sounding data
-    parseSoundingData(decodedContents);
-
-    // Update the plot with the new data
-    updatePlot(soundingData);
+    const soundingData = parseSoundingData(decodedContents);
+    updatePlots(soundingData);
   });
-  
-  // Read the selected file as a buffer
+
   reader.readAsArrayBuffer(file);
 });
 
-// Add an event listener for when the text area value changes
-const fileContents = document.getElementById("fileContents");
-fileContents.addEventListener("input", function(event) {
-
-  // Parse the sounding data 
- parseSoundingData(event.target.value);
-
-  // Update the plot with the new data
- updatePlot(soundingData);
+// Event listener for text area input
+document.getElementById("fileContents").addEventListener("input", function (event) {
+  const decodedContents = event.target.value;
+  const soundingData = parseSoundingData(decodedContents);
+  updatePlots(soundingData);
 });
 
-// Function to update the plot with new data
-  function updatePlot() {
-    // Extract the data from the parsed sounding data
-    const depthData = soundingData.map(row => row.D);
-    const tipData = soundingData.map(row => row.QC);
-    const frictionData = soundingData.map(row => row.FS);
-    const pressureData = soundingData.map(row => row.U);
-
-// Create the plot for tip data
-const trace1 = {
-  x: tipData,
-  y: depthData,
-  mode: "lines+markers",
-  type: "scatter",
-  name: "Tip",
-  marker: {
-    size: 2,
-    colorscale: "Viridis",
-    color: tipData
-  }
-};
-
-const layout1 = {
-  title: "Tip Data",
-  titlefont: {
-    size: 14 // adjust this value to reduce the font size of the title
-  },
-  margin: {
-    t: 20 // adjust this value to reduce the top margin
-  },
-
-  xaxis: {
-    title: "Tip (kPa)"
-  },
-  yaxis: {
-    title: "Depth (m)",
-    autorange: "reversed"
-  },
-  width: 400,
-  height: 700,
-  dragmode: 'pan',
-  plot_bgcolor: 'transparent',
-  paper_bgcolor: 'transparent',
-};
-
-// Create the plot for friction data
-const trace2 = {
-  x: frictionData,
-  y: depthData,
-  mode: "lines+markers",
-  type: "scatter",
-  name: "Friction",
-  marker: {
-    size: 4,
-    colorscale: "Viridis",
-    color: frictionData
-  }
-};
-const layout2 = {
-  title: "Friction Data",
-  titlefont: {
-    size: 14 // adjust this value to reduce the font size of the title
-  },
-  margin: {
-    t: 20 // adjust this value to reduce the top margin
-  },
-  xaxis: {
-    title: "Friction (kPa)"
-  },
-  yaxis: {
-    title: "Depth (m)",
-    autorange: "reversed"
-  },
-  width: 400,
-  height: 700,
-  dragmode: 'pan',
-  plot_bgcolor: 'transparent',
-  paper_bgcolor: 'transparent',
-};
-
-// Create the plot for pressure data
-const trace3 = {
-  x: pressureData,
-  y: depthData,
-  mode: "lines+markers",
-  type: "scatter",
-  name: "Pressure",
-  marker: {
-    size: 4,
-    colorscale: "Viridis",
-    color: pressureData
-  }
-};
-
-const layout3 = {
-  title: "Pressure Data",
-  titlefont: {
-    size: 14 // adjust this value to reduce the font size of the title
-  },
-  margin: {
-    t: 20 // adjust this value to reduce the top margin
-  },
-  xaxis: {
-    title: "Pressure (kPa)",
-    },
-  yaxis: {
-    title: "Depth (m)",
-    autorange: "reversed"
-  },
-  width: 400,
-  height: 700,
-  dragmode: 'pan',
-  plot_bgcolor: 'transparent',
-  paper_bgcolor: 'transparent',
-
-};
-
-// Set the grid layout options
-const gridLayout = {
-  grid: {
-    rows: 1,
-    columns: 3,
-    xgap: 0.4
-  },
-  width: 1300,
-  height: 400,
-  margin: {
-    l: 10,
-    r: 10,
-    b: 10,
-    t: 10,
-    pad: 2
-  },
-  paper_bgcolor: 'rgba(0,0,0,0)',
-  plot_bgcolor: 'rgba(0,0,0,0)'
-};
-
-const config = {
-  scrollZoom: true,
-  modeBarButtonsToRemove: ['lasso2d', 'select2d'],
-  displayModeBar: false,
-  responsive: true,
-  dragmode: 'pan',
-  hovermode: 'closest',
-  paper_bgcolor: 'rgba(0,0,0,0)',
-  plot_bgcolor: 'rgba(0,0,0,0)'
-
-};
-
-// Update the plots with the new data
-Plotly.newPlot('plot-container1', [trace1], layout1, config);
-Plotly.newPlot('plot-container2', [trace2], layout2, config);
-Plotly.newPlot('plot-container3', [trace3], layout3, config);
-}
-
-const saveButton = document.getElementById("saveButton");
-saveButton.addEventListener("click", function() {
+// Event listener for save button
+document.getElementById("saveButton").addEventListener("click", function () {
   const textArea = document.getElementById("fileContents");
   let contents = textArea.value;
-  
-  // Replace all occurrences of LF with CRLF
   contents = contents.replace(/\n/g, "\r\n");
 
-  const importedFile = document.getElementById("fileInput").files[0]; // Get the imported file
+  const importedFile = document.getElementById("fileInput").files[0];
   const blob = new Blob([contents], { type: "text/plain;charset=windows-1252" });
-  saveAs(blob, importedFile.name); // Use the imported file name
+  saveAs(blob, importedFile.name);
 });
 
+// Event listener for remove negatives button
+document.getElementById("removeNegativesButton").addEventListener("click", function () {
+  const fileContents = document.getElementById("fileContents").value;
+  const parameter = document.getElementById("removeNegativesSelect").value;
 
-const removeNegativesButton = document.getElementById("removeNegativesButton");
-removeNegativesButton.addEventListener("click", function() {
-  const fileContents = document.getElementById("fileContents").value; // Get the contents of the text area
-  const parameter = document.getElementById("removeNegativesSelect").value; // Get the selected parameter
+  const updatedContents = fileContents.replace(new RegExp(`(${parameter})=(-\\d+)`, "g"), (match, p1, p2) => {
+    return `${p1}=${p2.substring(1)}`;
+  });
 
-  const lines = fileContents.split("\n"); // Split the contents by newline character
-
-  const regex = new RegExp("(" + parameter + ")=(-\\d+)", "g"); // Regular expression to match the selected parameter with negative values
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const updatedLine = line.replace(regex, function(match, p1, p2) {
-      const newValue = p2.substring(1); // Remove the negative sign
-      return p1 + "=" + newValue; // Construct the updated value
-    });
-    lines[i] = updatedLine; // Store the updated line
-  }
-
-  const updatedContents = lines.join("\n"); // Join the updated lines with newline character
-  document.getElementById("fileContents").value = updatedContents; // Update the text area value
-
-  // Parse the updated sounding data and update the plots
-  const updatedSoundingData = parseSoundingData(updatedContents);
-  updatePlot(updatedSoundingData);
-
+  document.getElementById("fileContents").value = updatedContents;
+  const soundingData = parseSoundingData(updatedContents);
+  updatePlots(soundingData);
 });
 
-//Baseline Shifting feature
-const addValuesButton = document.getElementById("addValuesButton");
-addValuesButton.addEventListener("click", function() {
-  const fileContents = document.getElementById("fileContents").value; // Get the contents of the text area
-  const inputValue = parseFloat(document.getElementById("addValuesInput").value); // Get the input value
-  const parameter = document.getElementById("addValuesSelect").value; // Get the selected parameter
+// Event listener for baseline shifting feature (add values button)
+document.getElementById("addValuesButton").addEventListener("click", function () {
+  const fileContents = document.getElementById("fileContents").value;
+  const inputValue = parseFloat(document.getElementById("addValuesInput").value);
+  const parameter = document.getElementById("addValuesSelect").value;
 
-  const lines = fileContents.split("\n"); // Split the contents by newline character
+  const updatedContents = fileContents.replace(new RegExp(`(${parameter})=(-?\\d+(\\.\\d+)?)`, "g"), (match, p1, p2) => {
+    let newValue = parseFloat(p2) + inputValue;
+    if (p1 === "FS" || p1 === "U") {
+      newValue = newValue.toFixed(1);
+    } else {
+      newValue = newValue.toFixed(4);
+    }
+    return `${p1}=${newValue.toString()}`;
+  });
 
-  // Regular expression to match the selected parameter
-  const regex = new RegExp("(" + parameter + ")=(-?\\d+(\\.\\d+)?)" , "g");
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const updatedLine = line.replace(regex, function(match, p1, p2) {
-      let newValue = parseFloat(p2) + inputValue; // Add the input value to the existing value
-      if (p1 === "FS" || p1 === "U") {
-        newValue = newValue.toFixed(1); // Limit decimal places to 2 for FS and U
-      } else {
-        newValue = newValue.toFixed(4); // Limit decimal places to 4 for other parameters
-      }
-      return p1 + "=" + newValue.toString(); // Construct the updated value
-    });
-    lines[i] = updatedLine; // Store the updated line
-  }
-
-  const updatedContents = lines.join("\n"); // Join the updated lines with newline character
-  document.getElementById("fileContents").value = updatedContents; // Update the text area value
-  
+  document.getElementById("fileContents").value = updatedContents;
+  const soundingData = parseSoundingData(updatedContents);
+  updatePlots(soundingData);
 });
-
-
-
 
 
   </script>
